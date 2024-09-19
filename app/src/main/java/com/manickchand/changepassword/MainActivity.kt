@@ -21,7 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.manickchand.changepassword.ui.theme.ChangePasswordTheme
+import java.security.SecureRandom
 
 class MainActivity : ComponentActivity() {
 
@@ -30,9 +32,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private lateinit var adminComponent: ComponentName
+    private lateinit var devicePolicyManager: DevicePolicyManager
+    private var hasPermission: Boolean = false
+    val token = SecureRandom.getInstance("SHA1PRNG").generateSeed(32)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        devicePolicyManager =
+            getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
         setContent {
             ChangePasswordTheme {
@@ -45,15 +53,56 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        startText(modifier = Modifier)
-                        buttonChangePassword(Modifier) {
-                            adminComponent =
-                                ComponentName(this@MainActivity, MyDeviceAdminReceiver::class.java)
-                            // Request device admin privileges
-                            val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
-                                putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                        textTitle(getString(R.string.app_name), modifier = Modifier)
+                        textDescription(getString(R.string.txt_decription), modifier = Modifier)
+
+                        buttonChangePassword(getString(R.string.button_permission), Modifier) {
+                            if (hasPermission.not()) {
+                                adminComponent =
+                                    ComponentName(
+                                        this@MainActivity,
+                                        MyDeviceAdminReceiver::class.java
+                                    )
+                                val intent =
+                                    Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                                        putExtra(
+                                            DevicePolicyManager.EXTRA_DEVICE_ADMIN,
+                                            adminComponent
+                                        )
+                                    }
+                                startActivityForResult(intent, REQUEST_CODE_ENABLE_ADMIN)
+                            } else {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Permission Done",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
-                            startActivityForResult(intent, REQUEST_CODE_ENABLE_ADMIN)
+                        }
+
+                        buttonChangePassword(getString(R.string.button_change_text), Modifier) {
+
+                            if (hasPermission) {
+                                changePassword("1234")
+                            } else {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Check the permission",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+
+                        buttonChangePassword(getString(R.string.button_block_screen), Modifier) {
+                            if (hasPermission) {
+                                devicePolicyManager.lockNow()
+                            } else {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Check the permission",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
                     }
 
@@ -62,69 +111,32 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun byteArrayOfInts(vararg ints: Int) =
-        ByteArray(ints.size) { pos -> ints[pos].toByte() }
+    private fun changePassword(password: String?){
+
+        try {
+
+            devicePolicyManager.setResetPasswordToken(adminComponent, token);
+            devicePolicyManager.resetPasswordWithToken(
+                adminComponent,
+                password,
+                token,
+                0
+            )
+        }catch (e: Exception){
+            e.printStackTrace()
+            Toast.makeText(this, "Erro ao alterar senha, verifique se a senha ja esta setada.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
         if (requestCode == REQUEST_CODE_ENABLE_ADMIN) {
             if (resultCode == Activity.RESULT_OK) {
-
-                val devicePolicyManager =
-                    getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-                if (devicePolicyManager.isAdminActive(adminComponent)) {
-
-                    val token = byteArrayOfInts(
-                        0xA1,
-                        0x2E,
-                        0x38,
-                        0xD4,
-                        0x89,
-                        0xC3,
-                        0xA1,
-                        0x2E,
-                        0x38,
-                        0xD4,
-                        0x89,
-                        0xC3,
-                        0xA1,
-                        0x2E,
-                        0x38,
-                        0xD4,
-                        0x89,
-                        0xC3,
-                        0xA1,
-                        0x2E,
-                        0x38,
-                        0xD4,
-                        0x89,
-                        0xC3,
-                        0xA1,
-                        0x2E,
-                        0x38,
-                        0xD4,
-                        0x89,
-                        0xC3,
-                        0xA1,
-                        0x2E,
-                        0x38,
-                        0xD4,
-                        0x89,
-                        0xC3,
-                        0xA1,
-                        0x2E,
-                        0x38,
-                        0xD4,
-                        0x89,
-                        0xC3
-                    )
-
-                    devicePolicyManager.setResetPasswordToken(adminComponent, token);
-                    devicePolicyManager.resetPasswordWithToken(adminComponent, "1234", token, 0)
-                    //devicePolicyManager.lockNow()
-                }
+                hasPermission = devicePolicyManager.isAdminActive(adminComponent)
             } else {
+                hasPermission = false
                 Toast.makeText(this, "Admin not enabled", Toast.LENGTH_SHORT).show()
             }
         }
@@ -132,28 +144,39 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun startText(modifier: Modifier = Modifier) {
+fun textDescription(text: String, modifier: Modifier = Modifier) {
     Text(
-        text = "Clique para alterar a senha",
+        text = text,
         modifier = modifier
     )
 }
 
 @Composable
-fun buttonChangePassword(modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun textTitle(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        modifier = modifier,
+        fontSize = 20.sp
+    )
+}
+
+@Composable
+fun buttonChangePassword(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Button(onClick = {
         onClick.invoke()
     }) {
-        Text("Setar senha")
+        Text(text = text)
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
-    startText()
-    buttonChangePassword() {
+fun textDescriptionPreview() {
+    textDescription("Texto")
+}
 
-    }
-
+@Preview(showBackground = true)
+@Composable
+fun buttonPreview() {
+    buttonChangePassword("Mudar") {}
 }

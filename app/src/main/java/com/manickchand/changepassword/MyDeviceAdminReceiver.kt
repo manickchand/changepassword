@@ -20,6 +20,6 @@ class MyDeviceAdminReceiver : DeviceAdminReceiver() {
 
     override fun onPasswordChanged(context: Context, intent: Intent, user: UserHandle) {
         super.onPasswordChanged(context, intent, user)
-        Toast.makeText(context, "Senha Altarada", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Password change", Toast.LENGTH_SHORT).show()
     }
 }

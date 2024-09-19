@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">ChangePassword</string>
+    <string name="button_change_text">Setar senha para 1234</string>
+    <string name="button_block_screen">Bloquear tela</string>
+    <string name="button_permission">Solicitar Permissão</string>
+    <string name="txt_decription">Antes, execute o comando que está no readme para dar permisão de administrador para o app no emulador</string>
 </resources>
